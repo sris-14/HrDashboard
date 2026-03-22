@@ -1,0 +1,936 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Growify HR — Attendance Intelligence</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #110c14;
+    --surface: #181823;
+    --border: #2d2d44;
+    --accent: #e8ff47;
+    --accent2: #ff6b35;
+    --accent3: #4fffb0;
+    --text: #eaeaf6;
+    --muted: #6b6b80;
+    --safe: #4fffb0;
+    --risk: #ffcc00;
+    --critical: #ff4444;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image: 
+      linear-gradient(rgba(232,255,71,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(232,255,71,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .container {
+    max-width: 1200px;
+    margin: 0 auto;
+    padding: 0 24px;
+    position: relative;
+    z-index: 1;
+  }
+
+  /* Header */
+  header {
+    padding: 32px 0 24px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 40px;
+  }
+
+  .header-inner {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .logo-text {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.5px;
+  }
+
+  .logo-sub {
+    font-size: 11px;
+    color: var(--muted);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    margin-top: 2px;
+  }
+
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+  }
+
+  .refresh-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .pulse-dot {
+    width: 8px;
+    height: 8px;
+    background: var(--accent3);
+    border-radius: 50%;
+    animation: pulse 2s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.8); }
+  }
+
+  .last-updated {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  /* Config Banner */
+  .config-banner {
+    background: linear-gradient(135deg, #1a1a2e, #16213e);
+    border: 1px solid var(--accent);
+    border-radius: 12px;
+    padding: 16px 24px;
+    margin-bottom: 32px;
+    display: none;
+  }
+
+  .config-banner.show { display: block; }
+
+  .config-banner p {
+    font-size: 13px;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .config-form {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+
+  .config-input {
+    flex: 1;
+    min-width: 200px;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    outline: none;
+    transition: border-color 0.2s;
+  }
+
+  .config-input:focus { border-color: var(--accent); }
+
+  .config-btn {
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    padding: 10px 20px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .config-btn:hover { opacity: 0.85; }
+
+  /* Summary Cards */
+  .cards-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    position: relative;
+    overflow: hidden;
+    transition: border-color 0.2s, transform 0.2s;
+    animation: fadeUp 0.5s ease both;
+  }
+
+  .card:hover {
+    border-color: var(--accent);
+    transform: translateY(-2px);
+  }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .card:nth-child(1) { animation-delay: 0.1s; }
+  .card:nth-child(2) { animation-delay: 0.2s; }
+  .card:nth-child(3) { animation-delay: 0.3s; }
+  .card:nth-child(4) { animation-delay: 0.4s; }
+
+  .card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 2px;
+  }
+
+  .card.yellow::before { background: var(--accent); }
+  .card.green::before { background: var(--safe); }
+  .card.orange::before { background: var(--risk); }
+  .card.red::before { background: var(--critical); }
+
+  .card-label {
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 12px;
+  }
+
+  .card-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 48px;
+    font-weight: 800;
+    line-height: 1;
+    margin-bottom: 8px;
+  }
+
+  .card.yellow .card-value { color: var(--accent); }
+  .card.green .card-value { color: var(--safe); }
+  .card.orange .card-value { color: var(--risk); }
+  .card.red .card-value { color: var(--critical); }
+
+  .card-sub {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  /* Section Headers */
+  .section-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 20px;
+  }
+
+  .section-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+
+  .section-badge {
+    font-size: 11px;
+    background: var(--border);
+    padding: 4px 10px;
+    border-radius: 20px;
+    color: var(--muted);
+  }
+
+  /* Employee Table */
+  .table-container {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+    margin-bottom: 40px;
+  }
+
+  .table-header {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr 120px;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    font-size: 11px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+
+  .table-row {
+    display: grid;
+    grid-template-columns: 1fr 1.5fr 1fr 1fr 1fr 120px;
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    align-items: center;
+    transition: background 0.15s;
+    animation: fadeIn 0.3s ease both;
+  }
+
+  .table-row:last-child { border-bottom: none; }
+  .table-row:hover { background: rgba(255,255,255,0.02); }
+
+  @keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  .emp-id {
+    font-size: 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+  }
+
+  .emp-name {
+    font-size: 14px;
+    font-weight: 500;
+  }
+
+  .emp-dept {
+    font-size: 12px;
+    color: var(--muted);
+  }
+
+  .strike-count {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 18px;
+  }
+
+  .strike-count.s1 { color: var(--safe); }
+  .strike-count.s2 { color: var(--risk); }
+  .strike-count.s3 { color: var(--critical); }
+
+  /* Status Badge */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .badge-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+  }
+
+  .badge.safe {
+    background: rgba(79,255,176,0.1);
+    color: var(--safe);
+    border: 1px solid rgba(79,255,176,0.2);
+  }
+  .badge.safe .badge-dot { background: var(--safe); }
+
+  .badge.risk {
+    background: rgba(255,204,0,0.1);
+    color: var(--risk);
+    border: 1px solid rgba(255,204,0,0.2);
+  }
+  .badge.risk .badge-dot { background: var(--risk); animation: pulse 1.5s infinite; }
+
+  .badge.critical {
+    background: rgba(255,68,68,0.1);
+    color: var(--critical);
+    border: 1px solid rgba(255,68,68,0.2);
+  }
+  .badge.critical .badge-dot { background: var(--critical); animation: pulse 0.8s infinite; }
+
+  /* Override Button */
+  .override-btn {
+    background: transparent;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: var(--muted);
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+  }
+
+  .override-btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+    background: rgba(232,255,71,0.05);
+  }
+
+  .override-btn.excused {
+    border-color: var(--safe);
+    color: var(--safe);
+    background: rgba(79,255,176,0.05);
+  }
+
+  /* At Risk Section */
+  .at-risk-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 12px;
+    margin-bottom: 40px;
+  }
+
+  .risk-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    transition: border-color 0.2s;
+    animation: fadeUp 0.4s ease both;
+  }
+
+  .risk-card.s2 { border-left: 3px solid var(--risk); }
+  .risk-card.s3 { border-left: 3px solid var(--critical); }
+
+  .risk-card:hover { border-color: var(--accent); }
+
+  .risk-info h4 {
+    font-family: 'Syne', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 4px;
+  }
+
+  .risk-info p {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .risk-strike {
+    font-family: 'Syne', sans-serif;
+    font-size: 32px;
+    font-weight: 800;
+  }
+
+  .risk-card.s2 .risk-strike { color: var(--risk); }
+  .risk-card.s3 .risk-strike { color: var(--critical); }
+
+  /* Loading State */
+  .loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 60px;
+    color: var(--muted);
+    gap: 12px;
+    font-size: 13px;
+  }
+
+  .spinner {
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+  }
+
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+
+  /* Empty State */
+  .empty {
+    padding: 40px;
+    text-align: center;
+    color: var(--muted);
+    font-size: 13px;
+  }
+
+  /* Footer */
+  footer {
+    border-top: 1px solid var(--border);
+    padding: 20px 0;
+    margin-top: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .footer-text {
+    font-size: 11px;
+    color: var(--muted);
+  }
+
+  .countdown {
+    font-size: 11px;
+    color: var(--muted);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .countdown-num {
+    color: var(--accent);
+    font-weight: 600;
+    min-width: 20px;
+    text-align: right;
+  }
+
+  /* Modal */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.8);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s;
+  }
+
+  .modal-overlay.show {
+    opacity: 1;
+    pointer-events: all;
+  }
+
+  .modal {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 32px;
+    max-width: 400px;
+    width: 90%;
+    transform: scale(0.95);
+    transition: transform 0.2s;
+  }
+
+  .modal-overlay.show .modal { transform: scale(1); }
+
+  .modal h3 {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+
+  .modal p {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 24px;
+    line-height: 1.6;
+  }
+
+  .modal-actions {
+    display: flex;
+    gap: 12px;
+  }
+
+  .modal-confirm {
+    flex: 1;
+    background: var(--accent);
+    color: #0a0a0f;
+    border: none;
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 13px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .modal-confirm:hover { opacity: 0.85; }
+
+  .modal-cancel {
+    flex: 1;
+    background: transparent;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    font-family: 'DM Mono', monospace;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+
+  .modal-cancel:hover { border-color: var(--muted); color: var(--text); }
+
+  @media (max-width: 768px) {
+    .table-header, .table-row {
+      grid-template-columns: 1fr 1.5fr 1fr 100px;
+    }
+    .table-header .col-dept,
+    .table-row .emp-dept,
+    .table-header .col-date,
+    .table-row .emp-date { display: none; }
+    .cards-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <div class="header-inner">
+      <div class="logo">
+        <div>
+          <div class="logo-text">Growify Digital</div>
+          <div class="logo-sub">HR Attendance Intelligence</div>
+        </div>
+      </div>
+      <div class="header-right">
+        <div class="refresh-indicator">
+          <div class="pulse-dot"></div>
+          <span>Live</span>
+        </div>
+        <div class="last-updated" id="lastUpdated">—</div>
+      </div>
+    </div>
+  </header>
+
+  <!-- Config Banner -->
+  <div class="config-banner show" id="configBanner">
+    <p>⚙️ Enter your Google Sheets credentials to connect live data</p>
+    <div class="config-form">
+      <input class="config-input" id="apiKeyInput" type="password" placeholder="Google Sheets API Key (sk-...)">
+      <input class="config-input" id="sheetIdInput" type="text" placeholder="Sheet ID" value="1j-gllwZ34552MOelO0Md62pre28S0n1w9o9I9uurTgU">
+      <button class="config-btn" onclick="saveConfig()">Connect</button>
+    </div>
+  </div>
+
+  <!-- Summary Cards -->
+  <div class="cards-grid">
+    <div class="card yellow">
+      <div class="card-label">Late Today</div>
+      <div class="card-value" id="statLate">—</div>
+      <div class="card-sub">employees arrived after 11:00 AM</div>
+    </div>
+    <div class="card green">
+      <div class="card-label">On Time</div>
+      <div class="card-value" id="statOnTime">—</div>
+      <div class="card-sub">employees on schedule</div>
+    </div>
+    <div class="card orange">
+      <div class="card-label">At Risk</div>
+      <div class="card-value" id="statRisk">—</div>
+      <div class="card-sub">employees at 2 strikes</div>
+    </div>
+    <div class="card red">
+      <div class="card-label">Critical</div>
+      <div class="card-value" id="statCritical">—</div>
+      <div class="card-sub">employees at 3 strikes</div>
+    </div>
+  </div>
+
+  <!-- At Risk Employees -->
+  <div class="section-header">
+    <div class="section-title">⚠️ At Risk & Critical Employees</div>
+    <div class="section-badge" id="riskBadge">0 employees</div>
+  </div>
+  <div class="at-risk-grid" id="atRiskGrid">
+    <div class="empty">No employees at risk this month</div>
+  </div>
+
+  <!-- Full Attendance Table -->
+  <div class="section-header">
+    <div class="section-title">📋 Strike Counter — All Employees</div>
+    <div class="section-badge" id="tableBadge">Loading...</div>
+  </div>
+  <div class="table-container">
+    <div class="table-header">
+      <span>EMP ID</span>
+      <span>NAME</span>
+      <span class="col-dept">MONTH</span>
+      <span class="col-date">LAST WARNING</span>
+      <span>STRIKES</span>
+      <span>STATUS</span>
+    </div>
+    <div id="tableBody">
+      <div class="loading">
+        <div class="spinner"></div>
+        <span>Connecting to Google Sheets...</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="container">
+  <footer>
+    <div class="footer-text">Growify Digital LLP — HR Automation System</div>
+    <div class="countdown">
+      Auto-refresh in <span class="countdown-num" id="countdownNum">60</span>s
+    </div>
+  </footer>
+</div>
+
+<!-- Override Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h3>Mark as Excused</h3>
+    <p id="modalText">Are you sure you want to mark this late arrival as excused? This will remove the strike from the employee's record.</p>
+    <div class="modal-actions">
+      <button class="modal-confirm" onclick="confirmOverride()">Confirm Override</button>
+      <button class="modal-cancel" onclick="closeModal()">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ─── CONFIG ───────────────────────────────────────────────
+  let API_KEY = '';
+  let SHEET_ID = '1j-gllwZ34552MOelO0Md62pre28S0n1w9o9I9uurTgU';
+  const STRIKE_SHEET = 'Strike Counter';
+  const DAILY_SHEET = 'Daily Records';
+  const REFRESH_INTERVAL = 60;
+
+  let countdown = REFRESH_INTERVAL;
+  let refreshTimer = null;
+  let countdownTimer = null;
+  let currentOverrideRow = null;
+  let excusedEmployees = new Set(JSON.parse(localStorage.getItem('excused') || '[]'));
+
+  // ─── CONFIG SAVE ─────────────────────────────────────────
+  function saveConfig() {
+    const key = document.getElementById('apiKeyInput').value.trim();
+    const id = document.getElementById('sheetIdInput').value.trim();
+    if (!key) { alert('Please enter your API key'); return; }
+    API_KEY = key;
+    SHEET_ID = id;
+    localStorage.setItem('gsheets_api_key', key);
+    localStorage.setItem('gsheets_sheet_id', id);
+    document.getElementById('configBanner').classList.remove('show');
+    loadData();
+    startRefresh();
+  }
+
+  // ─── FETCH SHEET DATA ─────────────────────────────────────
+  async function fetchSheet(sheetName) {
+    const url = `https://sheets.googleapis.com/v4/spreadsheets/${SHEET_ID}/values/${encodeURIComponent(sheetName)}?key=${API_KEY}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    const rows = data.values || [];
+    if (rows.length < 2) return [];
+    const headers = rows[0];
+    return rows.slice(1).map(row => {
+      const obj = {};
+      headers.forEach((h, i) => { obj[h] = row[i] || ''; });
+      return obj;
+    });
+  }
+
+  // ─── LOAD DATA ────────────────────────────────────────────
+  async function loadData() {
+    try {
+      const [strikeData, dailyData] = await Promise.all([
+        fetchSheet(STRIKE_SHEET),
+        fetchSheet(DAILY_SHEET)
+      ]);
+
+      updateSummaryCards(strikeData, dailyData);
+      updateAtRiskGrid(strikeData);
+      updateTable(strikeData);
+      document.getElementById('lastUpdated').textContent = 
+        'Updated ' + new Date().toLocaleTimeString();
+
+    } catch(e) {
+      console.error(e);
+      document.getElementById('tableBody').innerHTML = 
+        `<div class="empty">⚠️ Could not load data. Check your API key and Sheet ID.<br><small style="color:#ff4444">${e.message}</small></div>`;
+      document.getElementById('configBanner').classList.add('show');
+    }
+  }
+
+  // ─── SUMMARY CARDS ────────────────────────────────────────
+  function updateSummaryCards(strikeData, dailyData) {
+    const today = new Date().toISOString().split('T')[0];
+    const todayRecords = dailyData.filter(r => r['Date'] === today);
+    const late = todayRecords.filter(r => r['Late Flag'] === 'YES').length;
+    const onTime = todayRecords.filter(r => r['Late Flag'] === 'NO').length;
+
+    const atRisk = strikeData.filter(r => parseInt(r['Late Count']) === 2).length;
+    const critical = strikeData.filter(r => parseInt(r['Late Count']) >= 3).length;
+
+    animateNumber('statLate', late);
+    animateNumber('statOnTime', onTime);
+    animateNumber('statRisk', atRisk);
+    animateNumber('statCritical', critical);
+  }
+
+  function animateNumber(id, target) {
+    const el = document.getElementById(id);
+    let current = 0;
+    const step = Math.ceil(target / 20);
+    const timer = setInterval(() => {
+      current = Math.min(current + step, target);
+      el.textContent = current;
+      if (current >= target) clearInterval(timer);
+    }, 40);
+  }
+
+  // ─── AT RISK GRID ─────────────────────────────────────────
+  function updateAtRiskGrid(strikeData) {
+    const atRisk = strikeData.filter(r => parseInt(r['Late Count']) >= 2);
+    const grid = document.getElementById('atRiskGrid');
+    document.getElementById('riskBadge').textContent = `${atRisk.length} employees`;
+
+    if (atRisk.length === 0) {
+      grid.innerHTML = '<div class="empty">✅ No employees at risk this month</div>';
+      return;
+    }
+
+    grid.innerHTML = atRisk.sort((a,b) => parseInt(b['Late Count']) - parseInt(a['Late Count']))
+      .map((emp, i) => {
+        const count = parseInt(emp['Late Count']);
+        const cls = count >= 3 ? 's3' : 's2';
+        return `
+          <div class="risk-card ${cls}" style="animation-delay:${i*0.05}s">
+            <div class="risk-info">
+              <h4>${emp['Name'] || emp['Employee ID']}</h4>
+              <p>${emp['Employee ID']} · ${emp['Month'] || '—'}</p>
+            </div>
+            <div class="risk-strike">${count}</div>
+          </div>`;
+      }).join('');
+  }
+
+  // ─── MAIN TABLE ───────────────────────────────────────────
+  function updateTable(strikeData) {
+    const tbody = document.getElementById('tableBody');
+    document.getElementById('tableBadge').textContent = `${strikeData.length} employees`;
+
+    if (strikeData.length === 0) {
+      tbody.innerHTML = '<div class="empty">No strike data available yet</div>';
+      return;
+    }
+
+    const sorted = [...strikeData].sort((a,b) => 
+      parseInt(b['Late Count']) - parseInt(a['Late Count'])
+    );
+
+    tbody.innerHTML = sorted.map((emp, i) => {
+      const count = parseInt(emp['Late Count']) || 0;
+      const empId = emp['Employee ID'];
+      const isExcused = excusedEmployees.has(empId);
+
+      let badgeClass, badgeLabel, strikeClass;
+      if (isExcused) {
+        badgeClass = 'safe'; badgeLabel = 'Excused'; strikeClass = 's1';
+      } else if (count >= 3) {
+        badgeClass = 'critical'; badgeLabel = 'Critical'; strikeClass = 's3';
+      } else if (count === 2) {
+        badgeClass = 'risk'; badgeLabel = 'At Risk'; strikeClass = 's2';
+      } else {
+        badgeClass = 'safe'; badgeLabel = 'Safe'; strikeClass = 's1';
+      }
+
+      return `
+        <div class="table-row" style="animation-delay:${i*0.02}s">
+          <span class="emp-id">${empId}</span>
+          <span class="emp-name">${emp['Name'] || '—'}</span>
+          <span class="emp-dept col-dept">${emp['Month'] || '—'}</span>
+          <span class="emp-dept col-date">${emp['Last Warning Date'] || '—'}</span>
+          <span class="strike-count ${strikeClass}">${isExcused ? '✓' : count}</span>
+          <span>
+            <span class="badge ${badgeClass}">
+              <span class="badge-dot"></span>
+              ${badgeLabel}
+            </span>
+          </span>
+        </div>`;
+    }).join('');
+  }
+
+  // ─── OVERRIDE ─────────────────────────────────────────────
+  function openOverride(empId, empName) {
+    currentOverrideRow = empId;
+    document.getElementById('modalText').textContent = 
+      `Mark ${empName} (${empId}) late arrival as excused? This will update their status badge.`;
+    document.getElementById('modalOverlay').classList.add('show');
+  }
+
+  function closeModal() {
+    document.getElementById('modalOverlay').classList.remove('show');
+    currentOverrideRow = null;
+  }
+
+  function confirmOverride() {
+    if (currentOverrideRow) {
+      excusedEmployees.add(currentOverrideRow);
+      localStorage.setItem('excused', JSON.stringify([...excusedEmployees]));
+      closeModal();
+      loadData();
+    }
+  }
+
+  document.getElementById('modalOverlay').addEventListener('click', function(e) {
+    if (e.target === this) closeModal();
+  });
+
+  // ─── AUTO REFRESH ─────────────────────────────────────────
+  function startRefresh() {
+    if (refreshTimer) clearInterval(refreshTimer);
+    if (countdownTimer) clearInterval(countdownTimer);
+    countdown = REFRESH_INTERVAL;
+
+    refreshTimer = setInterval(() => {
+      loadData();
+      countdown = REFRESH_INTERVAL;
+    }, REFRESH_INTERVAL * 1000);
+
+    countdownTimer = setInterval(() => {
+      countdown--;
+      document.getElementById('countdownNum').textContent = countdown;
+      if (countdown <= 0) countdown = REFRESH_INTERVAL;
+    }, 1000);
+  }
+
+  // ─── INIT ─────────────────────────────────────────────────
+  window.addEventListener('load', () => {
+    const savedKey = localStorage.getItem('gsheets_api_key');
+    const savedId = localStorage.getItem('gsheets_sheet_id');
+    if (savedKey) {
+      API_KEY = savedKey;
+      SHEET_ID = savedId || SHEET_ID;
+      document.getElementById('configBanner').classList.remove('show');
+      loadData();
+      startRefresh();
+    }
+  });
+</script>
+</body>
+</html>
